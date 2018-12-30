@@ -1,8 +1,8 @@
 pragma solidity >0.4.0;
-pragma experimental ABIEncoderV2;
+//pragma experimental ABIEncoderV2;
 
 contract GenesisSpace{
-    //specify a genesis country.
+    //define a genesis country.
     struct Country {
         string name; 
         string description; 
@@ -14,7 +14,7 @@ contract GenesisSpace{
         mapping (address => Citizen) citizens;
     }
     
-    //specify a citizen.
+    //define a citizen.
     struct Citizen {
         string name;
         uint balance;
@@ -30,9 +30,18 @@ contract GenesisSpace{
         country.treasury = treasury_;
     }
     
-    //The country accepts a citizen.
-    function accept(address citizenAddr, Citizen memory citizen) public returns (bool) {
+    //The country accepts a citizen. This requires the feature supported by ABIEncoderV2.
+    //function accept(address citizenAddr, Citizen memory citizen) public returns (bool) {
         //TODO: apply the entrance rules. For now, we accept all citizens.
+    //    country.citizens[citizenAddr] = citizen; //link the address to the citizen
+    //    citizenList.push(citizenAddr); //add the citizen address to the citizen list
+    //    return true;
+    //}
+    
+    //The country accepts a citizen.
+    function accept(address citizenAddr, string memory name_, uint balance_) public returns (bool) {
+        //TODO: apply the entrance rules. For now, we accept all citizens.
+        Citizen memory citizen = Citizen(name_, balance_);
         country.citizens[citizenAddr] = citizen; //link the address to the citizen
         citizenList.push(citizenAddr); //add the citizen address to the citizen list
         return true;
@@ -47,7 +56,7 @@ contract GenesisSpace{
         require(i != citizenList.length, "Citizen is not found!");
     }
     
-    //Removes a citizen.
+    //remove a citizen.
     function remove(address citizenAddr) public returns (bool) {
         uint index = lookup(citizenAddr);
         if(index < citizenList.length) {
@@ -60,22 +69,22 @@ contract GenesisSpace{
         }
     }
     
-    //Gets citizen address list.
+    //get citizen address list.
     function getCitizenList() public view returns (address[] memory) {
         return citizenList;
     }
     
-    //Gets the address of the ith citizen from the citizen address list.
+    //get the address of the ith citizen from the citizen address list.
     function getCitizenList(uint i) public view returns (address) {
         return citizenList[i];
     }
     
-    //Gets a citizen tuple based on the address.
-    function getCitizen(address addr) public view returns (Citizen memory) {
-        return country.citizens[addr];
+    //get the citizen name based on the citizen address.
+    function getCitizenName(address citizenAddr) public view returns (string memory) {
+        return country.citizens[citizenAddr].name;
     }
     
-    //Gets balance for a citizen.
+    //get balance for a citizen.
     function getCitizenBalance(address citizenAddr) public view returns (uint balance_) {
         balance_ = country.citizens[citizenAddr].balance;
     }
