@@ -25,7 +25,7 @@ contract genesisTest {
     }
     
     //Test the remove function - removing citizens
-    fuction checkRemovingCitizen() public {
+    function checkRemovingCitizen() public {
         //TODO
     }
 }
