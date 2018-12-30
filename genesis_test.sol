@@ -7,7 +7,7 @@ contract genesisTest {
     GenesisSpace countrytotest;
     
     function beforeAll() public {
-        countrytotest = new GenesisSpace("Genesis space", "This is a genesis space country", 1000);
+        countrytotest = new GenesisSpace("genesis", "This is a genesis space country", 1000);
     }
     
     //Test the accept function - accepting citizens
@@ -25,7 +25,13 @@ contract genesisTest {
     }
     
     //Test the remove function - removing citizens
-    fuction checkRemovingCitizen() public {
-        //TODO
+    function checkRemovingCitizen() public {
+        //remove the first citizen
+        Assert.ok(countrytotest.remove(address(1)), "Cannot remove the citizen!");
+        Assert.equal(countrytotest.getCitizenList().length, 1, "Length does not match!");
+        
+        //remove the second citizen
+        Assert.ok(countrytotest.remove(address(2)), "Cannot remove the citizen!");
+        Assert.equal(countrytotest.getCitizenList().length, 0, "Length does not match!");
     }
 }
