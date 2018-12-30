@@ -11,39 +11,51 @@ contract GenesisSpace{
         uint treasury;
         uint entryCost;
         uint exitCost;
-        mapping (address => Citizen) citizens;
+        mapping (address => Citizen) citizens;//TODO: not sure if we need this.
     }
     
-    //define a citizen.
+    //define a citizen. TODO: not sure if we need this.
     struct Citizen {
         string name;
-        uint balance;
+        uint balance; 
     }
     
     Country country;
+    address payable countryCreator;
     address[] citizenList;
     
     //create a country with name, description and treasury.
     constructor(string memory name_, string memory description_, uint treasury_) public {
+        countryCreator = msg.sender;
         country.name = name_;
         country.description = description_;
         country.treasury = treasury_;
     }
     
-    //The country accepts a citizen. This requires the feature supported by ABIEncoderV2.
-    //function accept(address citizenAddr, Citizen memory citizen) public returns (bool) {
-        //TODO: apply the entrance rules. For now, we accept all citizens.
-    //    country.citizens[citizenAddr] = citizen; //link the address to the citizen
-    //    citizenList.push(citizenAddr); //add the citizen address to the citizen list
-    //    return true;
-    //}
+    modifier onlyCountry() {
+        require(
+            msg.sender == countryCreator,
+            "Only country can call this."
+        );
+        _;
+    }
     
-    //The country accepts a citizen.
-    function accept(address citizenAddr, string memory name_, uint balance_) public returns (bool) {
-        //TODO: apply the entrance rules. For now, we accept all citizens.
-        Citizen memory citizen = Citizen(name_, balance_);
-        country.citizens[citizenAddr] = citizen; //link the address to the citizen
-        citizenList.push(citizenAddr); //add the citizen address to the citizen list
+    modifier onlyCitizen() {
+        require(
+            msg.sender != countryCreator,
+            "Only citizen can call this."
+        );
+        _;
+    }
+    
+    //join the country. It can be only called by citizens.
+    //TODO: do we need the name information of the sender??
+    function join(string memory name_) public onlyCitizen payable returns (bool) {
+        require(msg.value >= country.entryCost, "Fail to pay the entry cost!");
+        countryCreator.transfer(country.entryCost);
+        Citizen memory citizen = Citizen(name_, msg.sender.balance);
+        country.citizens[msg.sender] = citizen;//TODO:check whether the citizen already exists
+        citizenList.push(msg.sender); //add the citizen address to the citizen list
         return true;
     }
     
@@ -56,13 +68,15 @@ contract GenesisSpace{
         require(i != citizenList.length, "Citizen is not found!");
     }
     
-    //remove a citizen.
-    function remove(address citizenAddr) public returns (bool) {
-        uint index = lookup(citizenAddr);
+    //leave the country. 
+    function leave() public onlyCitizen payable returns (bool) {
+        require(msg.value >= country.exitCost, "Fail to pay the exit cost!");
+        countryCreator.transfer(country.exitCost);
+        uint index = lookup(msg.sender);
         if(index < citizenList.length) {
             citizenList[index] = citizenList[citizenList.length-1]; 
             citizenList.length--;
-            delete country.citizens[citizenAddr];
+            delete country.citizens[msg.sender];
             return true;
         } else {
             return false;
@@ -94,20 +108,20 @@ contract GenesisSpace{
         return country.name;
     }
     
-    //set the contry name (modifying name might involve voting).
-    //function setName(string memory name_) public {
-    //    country.name = name_;
-    //}
+    //set the contry name. TODO: modifying name might involve voting.
+    function setName(string memory name_) public onlyCountry {
+        country.name = name_;
+    }
     
     //get the country description.
     function getDescription() public view returns (string memory) {
         return country.description;
     }
     
-    //set the contry description (modifying description might involve voting).
-    //function setDescription(string memory description_) public {
-    //    country.description = description_;
-    //}
+    //set the contry description. TODO: modifying name might involve voting.
+    function setDescription(string memory description_) public onlyCountry{
+        country.description = description_;
+    }
     
     //get the mini program address.
     function getProgramAddr() public view returns (string memory) {
@@ -115,7 +129,7 @@ contract GenesisSpace{
     }
     
     //set the mini program address.
-    function setName(string memory programAddr_) public {
+    function setProgramAddr(string memory programAddr_) public {
         country.programAddr = programAddr_;
     }
     
@@ -135,7 +149,7 @@ contract GenesisSpace{
     }
     
     //set the entry cost.
-    function setEntryCost(uint cost_) public {
+    function setEntryCost(uint cost_) public onlyCountry {
         country.entryCost = cost_;
     }
     
@@ -145,7 +159,7 @@ contract GenesisSpace{
     }
     
     //set the exit cost.
-    function setExitCost(uint cost_) public {
+    function setExitCost(uint cost_) public onlyCountry {
         country.exitCost = cost_;
     }
 }
