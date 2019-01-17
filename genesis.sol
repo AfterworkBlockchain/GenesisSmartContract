@@ -6,7 +6,7 @@ contract GenesisSpace{
     struct Country {
         string name; 
         string description; 
-        string programAddr; //address for mini programs
+        address programAddr; //address for mini programs
         string programURL; //URL for mini programs
         uint treasury;
         uint entryCost;
@@ -26,10 +26,12 @@ contract GenesisSpace{
     mapping (address => uint) balances;
     
     //create a country.
-    constructor(string memory name_, string memory description_) public {
+    constructor(string memory name_, string memory description_, uint entryCost_, uint exitCost_) public {
         countryCreator = msg.sender;
         country.name = name_;
         country.description = description_;
+        country.entryCost = entryCost_;
+        country.exitCost = exitCost_;
     }
     
     modifier onlyCountry() {
@@ -93,7 +95,7 @@ contract GenesisSpace{
     }
     
     //get the address of the ith citizen from the citizen address list.
-    function getCitizenList(uint i) public view returns (address) {
+    function getCitizen(uint i) public view returns (address) {
         return citizenList[i];
     }
     
@@ -133,12 +135,12 @@ contract GenesisSpace{
     }
     
     //get the mini program address.
-    function getProgramAddr() public view returns (string memory) {
+    function getProgramAddr() public view returns (address) {
         return country.programAddr;
     }
     
     //set the mini program address.
-    function setProgramAddr(string memory programAddr_) public {
+    function setProgramAddr(address programAddr_) public {
         country.programAddr = programAddr_;
     }
     
