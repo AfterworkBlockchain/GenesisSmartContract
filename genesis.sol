@@ -53,7 +53,7 @@ contract GenesisSpace{
     //join the country. It can be only called by citizens.
     function join() public onlyCitizen payable returns (bool) {
         require(msg.value >= country.entryCost+country.exitCost, "The money sent must be larger than the sum of the entry and exit cost!");
-        countryCreator.transfer(country.entryCost); // the money is transferred to the address of the country creator.
+        //countryCreator.transfer(country.entryCost); // the money is transferred to the address of the country creator.
         country.treasury += country.entryCost; //update the treasury
         balances[msg.sender] = msg.value - country.entryCost;
         //Citizen memory citizen = Citizen(name_, msg.sender.balance);
@@ -75,7 +75,7 @@ contract GenesisSpace{
     function leave() public onlyCitizen payable returns (bool) {
         balances[msg.sender] += msg.value; 
         require(balances[msg.sender] >= country.exitCost, "Fail to pay the exit cost!");
-        countryCreator.transfer(country.exitCost);
+        //countryCreator.transfer(country.exitCost);
         balances[msg.sender] -= country.exitCost;
         country.treasury += country.exitCost;
         uint index = lookup(msg.sender);
