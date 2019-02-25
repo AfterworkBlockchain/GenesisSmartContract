@@ -19,7 +19,7 @@ contract SetWithVerification {
         selfdestruct(msg.sender);
     }
 
-   function isApproved(string memory funcName, uint nonce, bytes memory sig) internal returns (bool)
+   function isApproved(string memory funcName, uint nonce, bytes memory sig) internal pure returns (bool)
     { 
         require(!usedNonces[nonce]);
         usedNonces[nonce] = true;
