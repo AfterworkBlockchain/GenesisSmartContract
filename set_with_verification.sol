@@ -8,14 +8,7 @@ contract SetWithVerification {
 
     function setEntryCost(uint256 cost, uint256 nonce, bytes memory sig) public 
     {
-        require(!usedNonces[nonce]);
-        usedNonces[nonce] = true;
-
-        // This recreates the message that was signed on the client.
-        bytes32 message = prefixed(keccak256(abi.encodePacked(this, "setEntryCost", nonce)));
-
-        require(recoverSigner(message, sig) == admin);
-
+        require(isApproved("setEntryCost",nonce,sig) == true);
         entryCost = cost;
     }
 
@@ -26,7 +19,17 @@ contract SetWithVerification {
         selfdestruct(msg.sender);
     }
 
+   function isApproved(string memory funcName, uint nonce, bytes memory sig) internal pure returns (bool)
+    { 
+        require(!usedNonces[nonce]);
+        usedNonces[nonce] = true;
 
+        // This recreates the message that was signed on the client.
+        bytes32 message = prefixed(keccak256(abi.encodePacked(this, funcName, nonce)));
+        require(recoverSigner(message, sig) == admin);
+        
+        return true;
+    }
     // Signature methods
 
     function splitSignature(bytes memory sig) internal pure returns (uint8, bytes32, bytes32)
@@ -45,6 +48,12 @@ contract SetWithVerification {
             // final byte (first byte of the next 32 bytes)
             v := byte(0, mload(add(sig, 96)))
          }
+        
+        // https://github.com/ethereum/go-ethereum/issues/2053
+        if (v < 27) {
+            v += 27;
+        }
+        
 
         return (v, r, s);
     }
