@@ -48,6 +48,12 @@ contract SetWithVerification {
             // final byte (first byte of the next 32 bytes)
             v := byte(0, mload(add(sig, 96)))
          }
+        
+        // https://github.com/ethereum/go-ethereum/issues/2053
+        if (v < 27) {
+            v += 27;
+        }
+
 
         return (v, r, s);
     }

@@ -19,7 +19,8 @@ contract GenesisSpace{
     //    string name;
     //    uint balance; 
     //}
-    
+    address admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
+    mapping(uint256 => bool) usedNonces;
     Country country;
     address payable countryCreator;
     address[] citizenList;
@@ -119,59 +120,78 @@ contract GenesisSpace{
         return country.name;
     }
     
-    //set the contry name. TODO: modifying name might involve voting.
-    function setName(string memory name_) public onlyCountry {
-        country.name = name_;
-    }
-    
     //get the country description.
     function getDescription() public view returns (string memory) {
         return country.description;
     }
     
     //set the contry description. TODO: modifying name might involve voting.
-    function setDescription(string memory description_) public onlyCountry {
+    function setDescription(string memory description_,uint256 nonce, bytes memory sig) public onlyCountry {
+        require(isApproved("setDescription",nonce,sig) == true);
         country.description = description_;
     }
     
     //get the mini program address.
-    function getProgramAddr() public view returns (address) {
-        return country.programAddr;
-    }
+    // function getProgramAddr() public view returns (address) {
+    //     return country.programAddr;
+    // }
     
-    //set the mini program address.
-    function setProgramAddr(address programAddr_) public {
-        country.programAddr = programAddr_;
-    }
+    // //set the mini program address.
+    // function setProgramAddr(address programAddr_) public {
+    //     country.programAddr = programAddr_;
+    // }
     
     //get the mini program URL.
-    function getProgramURL() public view returns (string memory) {
-        return country.programURL;
-    }
+    // function getProgramURL() public view returns (string memory) {
+    //     return country.programURL;
+    // }
     
-    //set the mini program URL.
-    function setProgramURL(string memory programURL_) public {
+    // //set the mini program URL.
+    // function setProgramURL(string memory programURL_) public {
+    //     country.programURL = programURL_;
+    // }
+
+    function getProgram() public view returns (address, string memory) {
+        return (country.programAddr, country.programURL);
+    }
+
+    //set the mini program address.
+    function setProgram(address programAddr_, string memory programURL_,uint256 nonce, bytes memory sig ) public {
+        
+        require(isApproved("setProgram",nonce,sig) == true);
+        country.programAddr = programAddr_;
         country.programURL = programURL_;
     }
     
     //get the entry cost.
-    function getEntryCost() public view returns (uint) {
-        return country.entryCost;
-    }
+    // function getEntryCost() public view returns (uint) {
+    //     return country.entryCost;
+    // }
     
-    //set the entry cost.
-    function setEntryCost(uint cost_) public onlyCountry {
-        country.entryCost = cost_;
-    }
+    // //set the entry cost.
+    // function setEntryCost(uint cost_) public onlyCountry {
+    //     country.entryCost = cost_;
+    // }
     
     //get the exit cost.
-    function getExitCost() public view returns (uint) {
-        return country.exitCost;
+    // function getExitCost() public view returns (uint) {
+    //     return country.exitCost;
+    // }
+    
+    // //set the exit cost.
+    // function setExitCost(uint cost_) public onlyCountry {
+    //     country.exitCost = cost_;
+    // }
+    
+    function getCost() public view returns (uint, uint) {
+        return (country.entryCost,country.exitCost);
     }
     
-    //set the exit cost.
-    function setExitCost(uint cost_) public onlyCountry {
-        country.exitCost = cost_;
+    //set the entry cost and the exit cost
+    function setCost(uint entryCost_, uint exitCost_, uint256 nonce, bytes memory sig) public onlyCountry {
+        require(isApproved("setCost",nonce,sig) == true);
+        country.entryCost = entryCost_;
+        country.exitCost = exitCost_;
     }
     
     //set the entry cost and the exit cost
@@ -183,5 +203,61 @@ contract GenesisSpace{
     //get the country treasury.
     function getTreasury() public onlyCountry view returns (uint) {
         return country.treasury;
+    }
+
+    function isApproved(string memory funcName, uint nonce, bytes memory sig) internal returns (bool)
+    { 
+        require(!usedNonces[nonce]);
+        usedNonces[nonce] = true;
+
+        // This recreates the message that was signed on the client.
+        bytes32 message = prefixed(keccak256(abi.encodePacked(this, funcName, nonce)));
+        require(recoverSigner(message, sig) == admin);
+        
+        return true;
+    }
+    // Signature methods
+
+    function splitSignature(bytes memory sig) internal pure returns (uint8, bytes32, bytes32)
+    {
+        require(sig.length == 65);
+
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+
+        assembly {
+            // first 32 bytes, after the length prefix
+            r := mload(add(sig, 32))
+            // second 32 bytes
+            s := mload(add(sig, 64))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 96)))
+         }
+        // https://github.com/ethereum/go-ethereum/issues/2053
+        if (v < 27) {
+            v += 27;
+        }
+        
+        return (v, r, s);
+    }
+
+   function recoverSigner(bytes32 message, bytes memory sig)
+        internal
+        pure
+        returns (address)
+   {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+
+        (v, r, s) = splitSignature(sig);
+
+        return ecrecover(message, v, r, s);
+    }
+
+    // Builds a prefixed hash to mimic the behavior of eth_sign.
+    function prefixed(bytes32 hash) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
     }
 }
