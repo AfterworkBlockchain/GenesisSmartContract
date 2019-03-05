@@ -226,7 +226,7 @@ contract GenesisSpace{
             // second 32 bytes
             s := mload(add(sig, 64))
             // final byte (first byte of the next 32 bytes)
-            v := byte(0, mload(add(sig, 96)))
+            v := and(mload(add(sig, 65)), 255)
          }
         // https://github.com/ethereum/go-ethereum/issues/2053
         if (v < 27) {
