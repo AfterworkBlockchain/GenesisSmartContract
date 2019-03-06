@@ -194,6 +194,12 @@ contract GenesisSpace{
         country.exitCost = exitCost_;
     }
     
+    //set the entry cost and the exit cost
+    function setCost(uint entryCost_, uint exitCost_) public onlyCountry {
+        country.entryCost = entryCost_;
+        country.exitCost = exitCost_;
+    }
+    
     //get the country treasury.
     function getTreasury() public onlyCountry view returns (uint) {
         return country.treasury;

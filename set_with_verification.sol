@@ -53,7 +53,7 @@ contract SetWithVerification {
         if (v < 27) {
             v += 27;
         }
-        
+
 
         return (v, r, s);
     }
