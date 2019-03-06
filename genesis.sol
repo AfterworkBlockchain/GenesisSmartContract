@@ -116,7 +116,7 @@ contract GenesisSpace{
     }
     
     //set the contry description. TODO: modifying name might involve voting.
-    function setDescription(string memory description_,uint256 nonce, bytes memory sig) public onlyCountry {
+    function setDescription(string memory description_,uint256 nonce, bytes memory sig) public {
         
         require(isApproved("setDescription",nonce,sig) == true);
         country.description = description_;
@@ -139,7 +139,7 @@ contract GenesisSpace{
     }
     
     //set the entry cost and the exit cost
-    function setCost(uint entryCost_, uint exitCost_, uint256 nonce, bytes memory sig) public onlyCountry {
+    function setCost(uint entryCost_, uint exitCost_, uint256 nonce, bytes memory sig) public {
         
         require(isApproved("setCost",nonce,sig) == true);
         country.entryCost = entryCost_;
