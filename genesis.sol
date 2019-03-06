@@ -100,16 +100,6 @@ contract GenesisSpace{
         return citizenList[i];
     }
     
-    //get the citizen name based on the citizen address.
-    //function getCitizenName(address citizenAddr) public view returns (string memory) {
-    //    return country.citizens[citizenAddr].name;
-    //}
-    
-    //get balance for a citizen.
-    //function getCitizenBalance(address citizenAddr) public view returns (uint balance_) {
-    //    balance_ = country.citizens[citizenAddr].balance;
-    //}
-    
     //get balance based on a citizen address.
     function getBalance(address addr) public view returns (uint) {
         return balances[addr];
@@ -127,29 +117,10 @@ contract GenesisSpace{
     
     //set the contry description. TODO: modifying name might involve voting.
     function setDescription(string memory description_,uint256 nonce, bytes memory sig) public onlyCountry {
+        
         require(isApproved("setDescription",nonce,sig) == true);
         country.description = description_;
     }
-    
-    //get the mini program address.
-    // function getProgramAddr() public view returns (address) {
-    //     return country.programAddr;
-    // }
-    
-    // //set the mini program address.
-    // function setProgramAddr(address programAddr_) public {
-    //     country.programAddr = programAddr_;
-    // }
-    
-    //get the mini program URL.
-    // function getProgramURL() public view returns (string memory) {
-    //     return country.programURL;
-    // }
-    
-    // //set the mini program URL.
-    // function setProgramURL(string memory programURL_) public {
-    //     country.programURL = programURL_;
-    // }
 
     function getProgram() public view returns (address, string memory) {
         return (country.programAddr, country.programURL);
@@ -163,43 +134,18 @@ contract GenesisSpace{
         country.programURL = programURL_;
     }
     
-    //get the entry cost.
-    // function getEntryCost() public view returns (uint) {
-    //     return country.entryCost;
-    // }
-    
-    // //set the entry cost.
-    // function setEntryCost(uint cost_) public onlyCountry {
-    //     country.entryCost = cost_;
-    // }
-    
-    //get the exit cost.
-    // function getExitCost() public view returns (uint) {
-    //     return country.exitCost;
-    // }
-    
-    // //set the exit cost.
-    // function setExitCost(uint cost_) public onlyCountry {
-    //     country.exitCost = cost_;
-    // }
-    
     function getCost() public view returns (uint, uint) {
         return (country.entryCost,country.exitCost);
     }
     
     //set the entry cost and the exit cost
     function setCost(uint entryCost_, uint exitCost_, uint256 nonce, bytes memory sig) public onlyCountry {
+        
         require(isApproved("setCost",nonce,sig) == true);
         country.entryCost = entryCost_;
         country.exitCost = exitCost_;
     }
-    
-    //set the entry cost and the exit cost
-    function setCost(uint entryCost_, uint exitCost_) public onlyCountry {
-        country.entryCost = entryCost_;
-        country.exitCost = exitCost_;
-    }
-    
+
     //get the country treasury.
     function getTreasury() public onlyCountry view returns (uint) {
         return country.treasury;
