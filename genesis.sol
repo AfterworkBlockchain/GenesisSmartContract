@@ -19,7 +19,7 @@ contract GenesisSpace{
     //    string name;
     //    uint balance; 
     //}
-    address admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
+    address admin = 0x564F0D7C4456950dd5c0cc47E6fA330321951806;
     mapping(uint256 => bool) usedNonces;
     Country country;
     address payable countryCreator;
@@ -201,11 +201,11 @@ contract GenesisSpace{
 
     function isApproved(string memory funcName, uint nonce, bytes memory sig) internal returns (bool)
     { 
-        require(!usedNonces[nonce]);
+        //require(!usedNonces[nonce]);
         usedNonces[nonce] = true;
 
         // This recreates the message that was signed on the client.
-        bytes32 message = prefixed(keccak256(abi.encodePacked(this, funcName, nonce)));
+        bytes32 message = prefixed(keccak256(abi.encodePacked(address(this),funcName, nonce)));
         require(recoverSigner(message, sig) == admin);
         
         return true;
