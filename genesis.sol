@@ -25,6 +25,7 @@ contract GenesisSpace{
     address payable countryCreator;
     address[] citizenList;
     mapping (address => uint) balances;
+    mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
     
     //create a country.
     constructor(string memory name_, string memory description_, uint entryCost_, uint exitCost_) public {
@@ -59,7 +60,8 @@ contract GenesisSpace{
         balances[msg.sender] = msg.value - country.entryCost;
         //Citizen memory citizen = Citizen(name_, msg.sender.balance);
         //country.citizens[msg.sender] = citizen; //TODO:check whether the citizen already exists
-        citizenList.push(msg.sender); //add the citizen address to the citizen list
+        addCitizenToList(msg.sender); //add the citizen address to the citizen list
+        setCitizenStatus(msg.sender, 1); //set the "in" status for the citizen
         return true;
     }
     
@@ -79,7 +81,21 @@ contract GenesisSpace{
         //countryCreator.transfer(country.exitCost);
         balances[msg.sender] -= country.exitCost;
         country.treasury += country.exitCost;
-        uint index = lookup(msg.sender);
+        //remove from the citizen list
+        bool isRemoved = removeCitizenFromList(msg.sender);
+        //set the citizen status to "left"
+        setCitizenStatus(msg.sender, 2);
+        return isRemoved;
+    }
+    
+    //add the citizen to the citizen list.
+    function addCitizenToList(address citizen_) private {
+        citizenList.push(citizen_);
+    }
+    
+    //remove citizen from the citizen list.
+    function removeCitizenFromList(address citizenAddr) private returns (bool) {
+        uint index = lookup(citizenAddr);
         if(index < citizenList.length) {
             citizenList[index] = citizenList[citizenList.length-1]; 
             citizenList.length--;
@@ -88,6 +104,16 @@ contract GenesisSpace{
         } else {
             return false;
         }
+    }
+    
+    //get citizen status.
+    function getCitizenStatus(address citizen_) public view returns (uint8) {
+        return citizenStatus[citizen_];
+    }
+    
+    //set citizen status.
+    function setCitizenStatus(address citizen_, uint8 status_) public {
+        citizenStatus[citizen_] = status_;
     }
     
     //get citizen address list.
