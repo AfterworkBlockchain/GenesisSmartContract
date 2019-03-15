@@ -67,6 +67,7 @@ contract GenesisSpace{
     
     //leave the country. 
     function leave() public onlyCitizen payable returns (bool) {
+        require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
         balances[msg.sender] += msg.value; 
         require(balances[msg.sender] >= country.exitCost, "Fail to pay the exit cost!");
         //countryCreator.transfer(country.exitCost);
