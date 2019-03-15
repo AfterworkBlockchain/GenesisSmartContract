@@ -23,9 +23,9 @@ contract GenesisSpace{
     mapping(uint256 => bool) usedNonces;
     Country country;
     address payable countryCreator;
-    address[] citizenList;
+    address[] citizenList; //to be depredated if we do not need it
     mapping (address => uint) balances;
-    mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
+    mapping (address => uint8) citizenStatus;//0->never in, 1->in, 2->left, 3->kicked out
     
     //create a country.
     constructor(string memory name_, string memory description_, uint entryCost_, uint exitCost_) public {
@@ -60,18 +60,9 @@ contract GenesisSpace{
         balances[msg.sender] = msg.value - country.entryCost;
         //Citizen memory citizen = Citizen(name_, msg.sender.balance);
         //country.citizens[msg.sender] = citizen; //TODO:check whether the citizen already exists
-        addCitizenToList(msg.sender); //add the citizen address to the citizen list
+        addCitizenToList(msg.sender); //add the citizen address to the citizen list (to be depredated)
         setCitizenStatus(msg.sender, 1); //set the "in" status for the citizen
         return true;
-    }
-    
-    //look up the index of a citizen in the citizen list.
-    function lookup(address citizenAddr) private view returns (uint) {
-        uint i = 0;
-        for(; i < citizenList.length; i++) {
-            if(citizenList[i] == citizenAddr) return i;
-        }
-        require(i != citizenList.length, "Citizen is not found!");
     }
     
     //leave the country. 
@@ -81,19 +72,28 @@ contract GenesisSpace{
         //countryCreator.transfer(country.exitCost);
         balances[msg.sender] -= country.exitCost;
         country.treasury += country.exitCost;
-        //remove from the citizen list
+        //remove from the citizen list (to be depredated)
         bool isRemoved = removeCitizenFromList(msg.sender);
         //set the citizen status to "left"
         setCitizenStatus(msg.sender, 2);
         return isRemoved;
     }
     
-    //add the citizen to the citizen list.
+    //look up the index of a citizen in the citizen list (to be depredated).
+    function lookup(address citizenAddr) private view returns (uint) {
+        uint i = 0;
+        for(; i < citizenList.length; i++) {
+            if(citizenList[i] == citizenAddr) return i;
+        }
+        require(i != citizenList.length, "Citizen is not found!");
+    }
+    
+    //add the citizen to the citizen list (to be depredated).
     function addCitizenToList(address citizen_) private {
         citizenList.push(citizen_);
     }
     
-    //remove citizen from the citizen list.
+    //remove citizen from the citizen list (to be depredated).
     function removeCitizenFromList(address citizenAddr) private returns (bool) {
         uint index = lookup(citizenAddr);
         if(index < citizenList.length) {
@@ -116,12 +116,12 @@ contract GenesisSpace{
         citizenStatus[citizen_] = status_;
     }
     
-    //get citizen address list.
+    //get citizen address list (to be depredated).
     function getCitizenList() public view returns (address[] memory) {
         return citizenList;
     }
     
-    //get the address of the ith citizen from the citizen address list.
+    //get the address of the ith citizen from the citizen address list (to be depredated).
     function getCitizen(uint i) public view returns (address) {
         return citizenList[i];
     }
