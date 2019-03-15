@@ -65,7 +65,7 @@ contract GenesisSpace{
         return true;
     }
     
-    //leave the country. 
+    //leave the country. It can be only called by citizens.
     function leave() public onlyCitizen payable returns (bool) {
         require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
         balances[msg.sender] += msg.value; 
@@ -77,6 +77,24 @@ contract GenesisSpace{
         bool isRemoved = removeCitizenFromList(msg.sender);
         //set the citizen status to "left"
         setCitizenStatus(msg.sender, 2);
+        return isRemoved;
+    }
+    
+    //The admin kicks the citizen out. Todo: add restrictions who is allowed to call this.
+    function kickOut(address citizenAddr) public returns (bool) {
+        require(getCitizenStatus(citizenAddr)==1, "The citizen is not in the group!");
+        //penalty -- to be adjusted
+        if(balances[citizenAddr] < country.exitCost) {
+            country.treasury += balances[citizenAddr];
+            balances[citizenAddr] = 0;
+        } else {
+            balances[citizenAddr] -= country.exitCost;
+            country.treasury += country.exitCost;
+        }
+        //remove from the citizen list (to be depredated)
+        bool isRemoved = removeCitizenFromList(citizenAddr);
+        //set the citizen status to "kicked out"
+        setCitizenStatus(citizenAddr, 3);
         return isRemoved;
     }
     
