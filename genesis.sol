@@ -1,5 +1,4 @@
 pragma solidity >=0.5.0;
-//pragma experimental ABIEncoderV2;
 
 contract GenesisSpace{
     //define a genesis country.
@@ -8,32 +7,49 @@ contract GenesisSpace{
         string description; 
         address programAddr; //address for mini programs
         string programURL; //URL for mini programs
-        uint treasury;
-        uint entryCost;
-        uint exitCost;
+        uint256 treasury;
+        uint256 entryCost;
+        uint256 tax;
         //mapping (address => Citizen) citizens;//TODO: not sure if we need this.
     }
     
-    //define a citizen. TODO: not sure if we need this. For now, we simplify it.
-    //struct Citizen {
-    //    string name;
-    //    uint balance; 
-    //}
-    address admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
+    //define a warning for the tax to be paid.
+    event TaxWarning(
+        address indexed countryAddr,
+        string indexed countryName,
+        uint256 taxToBePaid
+        );
+    
+    //define an event to disable the country.
+    event DisableCountry(
+        address indexed countryAddr,
+        string indexed countryName
+        );
+    
+    address payable admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
     mapping(uint256 => bool) usedNonces;
     Country country;
     address payable countryCreator;
-    address[] citizenList; //to be depredated if we do not need it
-    mapping (address => uint) balances;
-    mapping (address => uint8) citizenStatus;//0->never in, 1->in, 2->left, 3->kicked out
+    address[] citizenList;
+    mapping (address => uint256) balances;
+    mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
+    uint256 lastCheck;
+    uint256 startWarning;
+    uint256 constant taxInterval = 1 days;
+    uint256 constant maxWarningTime = 3 hours;
+    bool isPaid;
     
     //create a country.
-    constructor(string memory name_, string memory description_, uint entryCost_, uint exitCost_) public {
+    constructor(string memory name_, string memory description_, uint256 entryCost_, uint256 tax_) public {
         countryCreator = msg.sender;
         country.name = name_;
         country.description = description_;
         country.entryCost = entryCost_;
-        country.exitCost = exitCost_;
+        country.tax = tax_;
+        setCitizenStatus(msg.sender, 1);
+        lastCheck = now;
+        isPaid = false;
+        startWarning = 0;
     }
     
     modifier onlyCountry() {
@@ -54,48 +70,103 @@ contract GenesisSpace{
     
     //join the country. It can be only called by citizens.
     function join() public onlyCitizen payable returns (bool) {
-        require(msg.value >= country.entryCost+country.exitCost, "The money sent must be larger than the sum of the entry and exit cost!");
-        //countryCreator.transfer(country.entryCost); // the money is transferred to the address of the country creator.
+        onCheck();
+        require(msg.value >= country.entryCost, "Failed to pay the entry cost!");
         country.treasury += country.entryCost; //update the treasury
         balances[msg.sender] = msg.value - country.entryCost;
         //Citizen memory citizen = Citizen(name_, msg.sender.balance);
         //country.citizens[msg.sender] = citizen; //TODO:check whether the citizen already exists
-        addCitizenToList(msg.sender); //add the citizen address to the citizen list (to be depredated)
+        addCitizenToList(msg.sender); //add the citizen address to the citizen list
         setCitizenStatus(msg.sender, 1); //set the "in" status for the citizen
         return true;
     }
     
-    //leave the country. It can be only called by citizens.
-    function leave() public onlyCitizen payable returns (bool) {
+     //leave the country. 
+    function leave() public onlyCitizen returns (bool) {
+        onCheck();
         require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
-        balances[msg.sender] += msg.value; 
-        require(balances[msg.sender] >= country.exitCost, "Fail to pay the exit cost!");
-        //countryCreator.transfer(country.exitCost);
-        balances[msg.sender] -= country.exitCost;
-        country.treasury += country.exitCost;
-        //remove from the citizen list (to be depredated)
+        //remove from the citizen list
         bool isRemoved = removeCitizenFromList(msg.sender);
         //set the citizen status to "left"
         setCitizenStatus(msg.sender, 2);
         return isRemoved;
     }
     
-    //The admin kicks the citizen out. Todo: add restrictions who is allowed to call this.
+    //The admin kicks the citizen out.
     function kickOut(address citizenAddr) public returns (bool) {
+        onCheck();
         require(getCitizenStatus(citizenAddr)==1, "The citizen is not in the group!");
         //penalty -- to be adjusted
-        if(balances[citizenAddr] < country.exitCost) {
-            country.treasury += balances[citizenAddr];
-            balances[citizenAddr] = 0;
-        } else {
-            balances[citizenAddr] -= country.exitCost;
-            country.treasury += country.exitCost;
-        }
+        //if(balances[citizenAddr] < country.exitCost) {
+        //    country.treasury += balances[citizenAddr];
+        //    balances[citizenAddr] = 0;
+        //} else {
+        //    balances[citizenAddr] -= country.exitCost;
+        //    country.treasury += country.exitCost;
+        //}
         //remove from the citizen list (to be depredated)
         bool isRemoved = removeCitizenFromList(citizenAddr);
         //set the citizen status to "kicked out"
         setCitizenStatus(citizenAddr, 3);
         return isRemoved;
+    }
+    
+    //recharge the user's balance account.
+    function recharge(uint256 amount) public payable {
+        onCheck();
+        balances[msg.sender] += amount;
+    }
+    
+    //send money to pay the tax.
+    function payTax() public payable {
+        country.treasury += msg.value;
+        deductTax();
+    }
+    
+    //check the time interval to support the periodical tax payment from a country.
+    function checkTaxInterval() private returns (bool) {
+        if((now - lastCheck) >= taxInterval) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    //deduct the tax from the country treasury.
+    function deductTax() private returns (bool) {
+        if(country.treasury < country.tax) {
+            //trigger a warning in the country
+            emit TaxWarning(address(this), country.name, country.tax);
+            //record the warning starting time, do not update this time when it's being called multiple times
+            if(isPaid) {
+                startWarning = now;
+            }
+            isPaid = false;
+        } else {//use the treasury to pay tax
+            country.treasury -= country.tax;
+            admin.transfer(country.tax);
+            lastCheck = now;
+            isPaid = true;
+            startWarning = 0;
+            return true;
+        }
+    }
+    
+    //check the duration of the warning. If it is over a maximal waiting time, disable the country.
+    function checkWarningDuration() private {
+        if((now-startWarning) > maxWarningTime && isPaid) {
+            //sent an event to disable everything
+            emit DisableCountry(address(this), country.name);
+        }
+    }
+    
+    function onCheck() private {
+        if(checkTaxInterval()) {
+            deductTax();
+        }
+        if(startWarning != 0) {//if a warning is sent out.
+            checkWarningDuration();
+        }
     }
     
     //look up the index of a citizen in the citizen list (to be depredated).
@@ -132,6 +203,7 @@ contract GenesisSpace{
     
     //set citizen status.
     function setCitizenStatus(address citizen_, uint8 status_) public {
+        onCheck();
         citizenStatus[citizen_] = status_;
     }
     
@@ -141,7 +213,7 @@ contract GenesisSpace{
     }
     
     //get the address of the ith citizen from the citizen address list (to be depredated).
-    function getCitizen(uint i) public view returns (address) {
+    function getCitizen(uint8 i) public view returns (address) {
         return citizenList[i];
     }
     
@@ -172,6 +244,7 @@ contract GenesisSpace{
     
     //set the contry description. TODO: modifying name might involve voting.
     function setDescription(string memory description_,uint256 nonce, bytes memory sig) public onlyCountry {
+        onCheck();
         require(isApproved("setDescription",nonce,sig) == true);
         country.description = description_;
     }
@@ -202,7 +275,7 @@ contract GenesisSpace{
 
     //set the mini program address.
     function setProgram(address programAddr_, string memory programURL_,uint256 nonce, bytes memory sig ) public {
-        
+        onCheck();
         require(isApproved("setProgram",nonce,sig) == true);
         country.programAddr = programAddr_;
         country.programURL = programURL_;
@@ -228,25 +301,27 @@ contract GenesisSpace{
     //     country.exitCost = cost_;
     // }
     
-    function getCost() public view returns (uint, uint) {
-        return (country.entryCost,country.exitCost);
+    function getCost() public view returns (uint256, uint256) {
+        return (country.entryCost,country.tax);
     }
     
-    //set the entry cost and the exit cost
-    function setCost(uint entryCost_, uint exitCost_, uint256 nonce, bytes memory sig) public onlyCountry {
+    //set the entry cost and the tax
+    function setCost(uint256 entryCost_, uint256 tax_, uint256 nonce, bytes memory sig) public onlyCountry {
+        onCheck();
         require(isApproved("setCost",nonce,sig) == true);
         country.entryCost = entryCost_;
-        country.exitCost = exitCost_;
+        country.tax = tax_;
     }
     
-    //set the entry cost and the exit cost
-    function setCost(uint entryCost_, uint exitCost_) public onlyCountry {
+    //set the entry cost and the tax
+    function setCost(uint256 entryCost_, uint256 tax_) public onlyCountry {
+        onCheck();
         country.entryCost = entryCost_;
-        country.exitCost = exitCost_;
+        country.tax = tax_;
     }
     
     //get the country treasury.
-    function getTreasury() public onlyCountry view returns (uint) {
+    function getTreasury() public view returns (uint256) {
         return country.treasury;
     }
 
