@@ -15,8 +15,7 @@ contract GenesisSpace{
     //define a warning for the tax to be paid.
     event TaxWarning(
         address indexed countryAddr,
-        string indexed countryName,
-        uint256 taxToBePaid
+        string indexed countryName      
         );
     
     //define an event to disable the country.
@@ -25,21 +24,19 @@ contract GenesisSpace{
         string indexed countryName
         );
     
-    uint256 constant taxInterval = 10 seconds;
-    uint256 constant maxWarningTime = 10 seconds;
+    uint256 constant taxInterval = 86400 seconds;
+
     address payable admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
     mapping(uint256 => bool) usedNonces;
     Country country;
-    address payable countryCreator;
-    //address[] citizenList;
+    address countryCreator;
     mapping (address => uint256) balances;
     mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
     uint256 lastCheck;
-    uint256 startWarning;
-    bool isPaid;
+    bool isEnabled;
     
     //create a country.
-    constructor(string memory name_, string memory description_, uint256 entryCost_, uint256 tax_) public {
+    constructor(string memory name_, string memory description_, uint256 entryCost_, uint256 tax_) payable public {
         countryCreator = msg.sender;
         country.name = name_;
         country.description = description_;
@@ -47,8 +44,8 @@ contract GenesisSpace{
         country.tax = tax_;
         setCitizenStatus(msg.sender, 1);
         lastCheck = now;
-        isPaid = false;
-        startWarning = 0;
+        isEnabled = true;
+        country.treasury += msg.value;
     }
     
     modifier onlyCountry() {
@@ -66,10 +63,17 @@ contract GenesisSpace{
         );
         _;
     }
+
+    modifier CountryEnabled() {
+        require(
+            isEnabled == true,
+            "Country is disabled due to not paying tax."
+        );
+        _;
+    }
     
     //join the country. It can be only called by citizens.
     function join() public onlyCitizen payable returns (bool) {
-        onCheck();
         require(msg.value >= country.entryCost, "Failed to pay the entry cost!");
         //require(getCitizenStatus(msg.sender) == 1, "The citizen is already in the country!");
         country.treasury += country.entryCost; //update the treasury
@@ -81,7 +85,6 @@ contract GenesisSpace{
     
      //leave the country. 
     function leave() public onlyCitizen returns (bool) {
-        onCheck();
         require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
         //send the user balance back to the citizen
         msg.sender.transfer(balances[msg.sender]);
@@ -93,8 +96,7 @@ contract GenesisSpace{
     }
     
     //The admin kicks the citizen out.
-    function kickOut(address citizenAddr) public returns (bool) {
-        onCheck();
+    function kickOut(address citizenAddr) CountryEnabled public returns (bool) {
         require(getCitizenStatus(citizenAddr)==1, "The citizen is not in the group!");
         //penalty -- to be added???
         //if(balances[citizenAddr] < country.exitCost) {
@@ -113,7 +115,6 @@ contract GenesisSpace{
     
     //recharge the user's balance account.
     function recharge() public payable {
-        onCheck();
         require(getCitizenStatus(msg.sender) == 1,"The citizen is not in the country yet!");
         balances[msg.sender] += msg.value;
     }
@@ -121,11 +122,10 @@ contract GenesisSpace{
     //send money to pay the tax.
     function payTax() public payable {
         country.treasury += msg.value;
-        deductTax();
     }
     
     //check the time interval to support the periodical tax payment from a country.
-    function checkTaxInterval() private returns (bool) {
+    function checkTaxInterval() private view returns (bool) {
         if((now - lastCheck) >= taxInterval) {
             return true;
         } else {
@@ -134,99 +134,41 @@ contract GenesisSpace{
     }
     
     //deduct the tax from the country treasury.
-    function deductTax() private returns (bool) {
+    function deductTax() private {
         if(country.treasury < country.tax) {
-            if(isPaid) {
-                //trigger a warning in the country
-                emit TaxWarning(address(this), country.name, country.tax);
-                //record the warning starting time
-                startWarning = now;
-            }
-            isPaid = false;
+            emit DisableCountry(address(this), country.name);
+             isEnabled == false;
         } else {//use the treasury to pay tax
             country.treasury -= country.tax;
             admin.transfer(country.tax);
             lastCheck = now;
-            isPaid = true;
-            startWarning = 0;
-            return true;
-        }
-    }
-    
-    //check the duration of the warning. If it is over a maximal waiting time, disable the country.
-    function checkWarningDuration() private {
-        if((now-startWarning) > maxWarningTime && !isPaid) {
-            //sent an event to disable everything
-            emit DisableCountry(address(this), country.name);
+            isEnabled = true;
         }
     }
     
     function onCheck() private {
         if(checkTaxInterval()) {
+            if(country.treasury < 3 * country.tax){
+            emit TaxWarning(address(this), country.name);
+            }
             deductTax();
-        }
-        if(startWarning != 0) {//if a warning is sent out.
-            checkWarningDuration();
         }
     }
     
-    //look up the index of a citizen in the citizen list (to be depredated).
-    //function lookup(address citizenAddr) private view returns (uint) {
-    //    uint i = 0;
-    //    for(; i < citizenList.length; i++) {
-    //        if(citizenList[i] == citizenAddr) return i;
-    //    }
-    //    require(i != citizenList.length, "Citizen is not found!");
-    //}
-    
-    //add the citizen to the citizen list (to be depredated).
-    //function addCitizenToList(address citizen_) private {
-    //    citizenList.push(citizen_);
-    //}
-    
-    //remove citizen from the citizen list (to be depredated).
-    //function removeCitizenFromList(address citizenAddr) private returns (bool) {
-    //    uint index = lookup(citizenAddr);
-    //    if(index < citizenList.length) {
-    //        citizenList[index] = citizenList[citizenList.length-1]; 
-    //        citizenList.length--;
-    //        //delete country.citizens[msg.sender];
-    //        return true;
-    //    } else {
-    //        return false;
-    //    }
-    //}
-    
+    function onExTrigger() public{
+        require(msg.sender == admin, "This function is only allowed to be executed from admin");
+        onCheck();
+    }
+
     //get citizen status.
     function getCitizenStatus(address citizen_) public view returns (uint8) {
         return citizenStatus[citizen_];
     }
     
     //set citizen status.
-    function setCitizenStatus(address citizen_, uint8 status_) public {
-        onCheck();
+    function setCitizenStatus(address citizen_, uint8 status_) private {
         citizenStatus[citizen_] = status_;
     }
-    
-    //get citizen address list (to be depredated).
-    //function getCitizenList() public view returns (address[] memory) {
-    //    return citizenList;
-    //}
-    
-    //get the address of the ith citizen from the citizen address list (to be depredated).
-    //function getCitizen(uint8 i) public view returns (address) {
-    //    return citizenList[i];
-    //}
-    
-    //get the citizen name based on the citizen address.
-    //function getCitizenName(address citizenAddr) public view returns (string memory) {
-    //    return country.citizens[citizenAddr].name;
-    //}
-    
-    //get balance for a citizen.
-    //function getCitizenBalance(address citizenAddr) public view returns (uint balance_) {
-    //    balance_ = country.citizens[citizenAddr].balance;
-    //}
     
     //get balance based on a citizen address.
     function getBalance(address addr) public view returns (uint) {
@@ -244,83 +186,34 @@ contract GenesisSpace{
     }
     
     //set the contry description. TODO: modifying name might involve voting.
-    function setDescription(string memory description_,uint256 nonce, bytes memory sig) public onlyCountry {
-        onCheck();
+    function setDescription(string memory description_,uint256 nonce, bytes memory sig) public CountryEnabled {
         require(isApproved("setDescription",nonce,sig) == true);
         country.description = description_;
     }
-    
-    //get the mini program address.
-    // function getProgramAddr() public view returns (address) {
-    //     return country.programAddr;
-    // }
-    
-    // //set the mini program address.
-    // function setProgramAddr(address programAddr_) public {
-    //     country.programAddr = programAddr_;
-    // }
-    
-    //get the mini program URL.
-    // function getProgramURL() public view returns (string memory) {
-    //     return country.programURL;
-    // }
-    
-    // //set the mini program URL.
-    // function setProgramURL(string memory programURL_) public {
-    //     country.programURL = programURL_;
-    // }
 
     function getProgram() public view returns (address, string memory) {
         return (country.programAddr, country.programURL);
     }
 
     //set the mini program address.
-    function setProgram(address programAddr_, string memory programURL_,uint256 nonce, bytes memory sig ) public {
-        onCheck();
+    function setProgram(address programAddr_, string memory programURL_, uint256 nonce, bytes memory sig ) CountryEnabled public {
         require(isApproved("setProgram",nonce,sig) == true);
         country.programAddr = programAddr_;
         country.programURL = programURL_;
     }
-    
-    //get the entry cost.
-    // function getEntryCost() public view returns (uint) {
-    //     return country.entryCost;
-    // }
-    
-    // //set the entry cost.
-    // function setEntryCost(uint cost_) public onlyCountry {
-    //     country.entryCost = cost_;
-    // }
-    
-    //get the exit cost.
-    // function getExitCost() public view returns (uint) {
-    //     return country.exitCost;
-    // }
-    
-    // //set the exit cost.
-    // function setExitCost(uint cost_) public onlyCountry {
-    //     country.exitCost = cost_;
-    // }
-    
+
     function getCost() public view returns (uint256, uint256) {
         return (country.entryCost,country.tax);
     }
     
     //set the entry cost and the tax
-    function setCost(uint256 entryCost_, uint256 tax_, uint256 nonce, bytes memory sig) public onlyCountry {
-        onCheck();
+    function setCost(uint256 entryCost_, uint256 tax_, uint256 nonce, bytes memory sig) public CountryEnabled {
         require(isApproved("setCost",nonce,sig) == true);
         country.entryCost = entryCost_;
         country.tax = tax_;
     }
     
-    //set the entry cost and the tax
-    function setCost(uint256 entryCost_, uint256 tax_) public onlyCountry {
-        onCheck();
-        country.entryCost = entryCost_;
-        country.tax = tax_;
-    }
-    
+
     //get the country treasury.
     function getTreasury() public view returns (uint256) {
         return country.treasury;
