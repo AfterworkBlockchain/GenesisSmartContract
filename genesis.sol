@@ -10,7 +10,6 @@ contract GenesisSpace{
         uint256 treasury;
         uint256 entryCost;
         uint256 tax;
-        //mapping (address => Citizen) citizens;//TODO: not sure if we need this.
     }
     
     //define a warning for the tax to be paid.
@@ -26,17 +25,17 @@ contract GenesisSpace{
         string indexed countryName
         );
     
+    uint256 constant taxInterval = 10 seconds;
+    uint256 constant maxWarningTime = 10 seconds;
     address payable admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
     mapping(uint256 => bool) usedNonces;
     Country country;
     address payable countryCreator;
-    address[] citizenList;
+    //address[] citizenList;
     mapping (address => uint256) balances;
     mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
     uint256 lastCheck;
     uint256 startWarning;
-    uint256 constant taxInterval = 1 days;
-    uint256 constant maxWarningTime = 3 hours;
     bool isPaid;
     
     //create a country.
@@ -72,11 +71,10 @@ contract GenesisSpace{
     function join() public onlyCitizen payable returns (bool) {
         onCheck();
         require(msg.value >= country.entryCost, "Failed to pay the entry cost!");
+        //require(getCitizenStatus(msg.sender) == 1, "The citizen is already in the country!");
         country.treasury += country.entryCost; //update the treasury
         balances[msg.sender] = msg.value - country.entryCost;
-        //Citizen memory citizen = Citizen(name_, msg.sender.balance);
-        //country.citizens[msg.sender] = citizen; //TODO:check whether the citizen already exists
-        addCitizenToList(msg.sender); //add the citizen address to the citizen list
+        //addCitizenToList(msg.sender); //add the citizen address to the citizen list
         setCitizenStatus(msg.sender, 1); //set the "in" status for the citizen
         return true;
     }
@@ -85,18 +83,20 @@ contract GenesisSpace{
     function leave() public onlyCitizen returns (bool) {
         onCheck();
         require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
-        //remove from the citizen list
-        bool isRemoved = removeCitizenFromList(msg.sender);
+        //send the user balance back to the citizen
+        msg.sender.transfer(balances[msg.sender]);
+        //set the balance to 0
+        balances[msg.sender] = 0;
         //set the citizen status to "left"
         setCitizenStatus(msg.sender, 2);
-        return isRemoved;
+        return true;
     }
     
     //The admin kicks the citizen out.
     function kickOut(address citizenAddr) public returns (bool) {
         onCheck();
         require(getCitizenStatus(citizenAddr)==1, "The citizen is not in the group!");
-        //penalty -- to be adjusted
+        //penalty -- to be added???
         //if(balances[citizenAddr] < country.exitCost) {
         //    country.treasury += balances[citizenAddr];
         //    balances[citizenAddr] = 0;
@@ -105,16 +105,17 @@ contract GenesisSpace{
         //    country.treasury += country.exitCost;
         //}
         //remove from the citizen list (to be depredated)
-        bool isRemoved = removeCitizenFromList(citizenAddr);
+        //bool isRemoved = removeCitizenFromList(citizenAddr);
         //set the citizen status to "kicked out"
         setCitizenStatus(citizenAddr, 3);
-        return isRemoved;
+        return true;
     }
     
     //recharge the user's balance account.
-    function recharge(uint256 amount) public payable {
+    function recharge() public payable {
         onCheck();
-        balances[msg.sender] += amount;
+        require(getCitizenStatus(msg.sender) == 1,"The citizen is not in the country yet!");
+        balances[msg.sender] += msg.value;
     }
     
     //send money to pay the tax.
@@ -135,10 +136,10 @@ contract GenesisSpace{
     //deduct the tax from the country treasury.
     function deductTax() private returns (bool) {
         if(country.treasury < country.tax) {
-            //trigger a warning in the country
-            emit TaxWarning(address(this), country.name, country.tax);
-            //record the warning starting time, do not update this time when it's being called multiple times
             if(isPaid) {
+                //trigger a warning in the country
+                emit TaxWarning(address(this), country.name, country.tax);
+                //record the warning starting time
                 startWarning = now;
             }
             isPaid = false;
@@ -154,7 +155,7 @@ contract GenesisSpace{
     
     //check the duration of the warning. If it is over a maximal waiting time, disable the country.
     function checkWarningDuration() private {
-        if((now-startWarning) > maxWarningTime && isPaid) {
+        if((now-startWarning) > maxWarningTime && !isPaid) {
             //sent an event to disable everything
             emit DisableCountry(address(this), country.name);
         }
@@ -170,31 +171,31 @@ contract GenesisSpace{
     }
     
     //look up the index of a citizen in the citizen list (to be depredated).
-    function lookup(address citizenAddr) private view returns (uint) {
-        uint i = 0;
-        for(; i < citizenList.length; i++) {
-            if(citizenList[i] == citizenAddr) return i;
-        }
-        require(i != citizenList.length, "Citizen is not found!");
-    }
+    //function lookup(address citizenAddr) private view returns (uint) {
+    //    uint i = 0;
+    //    for(; i < citizenList.length; i++) {
+    //        if(citizenList[i] == citizenAddr) return i;
+    //    }
+    //    require(i != citizenList.length, "Citizen is not found!");
+    //}
     
     //add the citizen to the citizen list (to be depredated).
-    function addCitizenToList(address citizen_) private {
-        citizenList.push(citizen_);
-    }
+    //function addCitizenToList(address citizen_) private {
+    //    citizenList.push(citizen_);
+    //}
     
     //remove citizen from the citizen list (to be depredated).
-    function removeCitizenFromList(address citizenAddr) private returns (bool) {
-        uint index = lookup(citizenAddr);
-        if(index < citizenList.length) {
-            citizenList[index] = citizenList[citizenList.length-1]; 
-            citizenList.length--;
-            //delete country.citizens[msg.sender];
-            return true;
-        } else {
-            return false;
-        }
-    }
+    //function removeCitizenFromList(address citizenAddr) private returns (bool) {
+    //    uint index = lookup(citizenAddr);
+    //    if(index < citizenList.length) {
+    //        citizenList[index] = citizenList[citizenList.length-1]; 
+    //        citizenList.length--;
+    //        //delete country.citizens[msg.sender];
+    //        return true;
+    //    } else {
+    //        return false;
+    //    }
+    //}
     
     //get citizen status.
     function getCitizenStatus(address citizen_) public view returns (uint8) {
@@ -208,14 +209,14 @@ contract GenesisSpace{
     }
     
     //get citizen address list (to be depredated).
-    function getCitizenList() public view returns (address[] memory) {
-        return citizenList;
-    }
+    //function getCitizenList() public view returns (address[] memory) {
+    //    return citizenList;
+    //}
     
     //get the address of the ith citizen from the citizen address list (to be depredated).
-    function getCitizen(uint8 i) public view returns (address) {
-        return citizenList[i];
-    }
+    //function getCitizen(uint8 i) public view returns (address) {
+    //    return citizenList[i];
+    //}
     
     //get the citizen name based on the citizen address.
     //function getCitizenName(address citizenAddr) public view returns (string memory) {
