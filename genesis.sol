@@ -27,6 +27,7 @@ contract GenesisSpace{
     uint256 constant taxInterval = 86400 seconds;
 
     address payable admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
+    uint8 warningLimit = 3
     mapping(uint256 => bool) usedNonces;
     Country country;
     address countryCreator;
@@ -96,20 +97,11 @@ contract GenesisSpace{
     }
     
     //The admin kicks the citizen out.
-    function kickOut(address citizenAddr) CountryEnabled public returns (bool) {
+    function kickOut(address payable citizenAddr,uint256 nonce, bytes memory sig) CountryEnabled public payable returns (bool) {
         require(getCitizenStatus(citizenAddr)==1, "The citizen is not in the group!");
-        //penalty -- to be added???
-        //if(balances[citizenAddr] < country.exitCost) {
-        //    country.treasury += balances[citizenAddr];
-        //    balances[citizenAddr] = 0;
-        //} else {
-        //    balances[citizenAddr] -= country.exitCost;
-        //    country.treasury += country.exitCost;
-        //}
-        //remove from the citizen list (to be depredated)
-        //bool isRemoved = removeCitizenFromList(citizenAddr);
-        //set the citizen status to "kicked out"
+        require(isApproved("kickOut",nonce,sig) == true);
         setCitizenStatus(citizenAddr, 3);
+        citizenAddr.transfer(balances[citizenAddr]);
         return true;
     }
     
@@ -119,6 +111,13 @@ contract GenesisSpace{
         balances[msg.sender] += msg.value;
     }
     
+    //TODO: withdraw
+    function withdraw(uint256 value) public payable {
+        require(getCitizenStatus(msg.sender) == 1,"The citizen is not in the country yet!");
+        require(value <= balances[msg.sender]);
+        balances[msg.sender] -= value;
+        msg.sender.transfer(value);
+    }
     //send money to pay the tax.
     function payTax() public payable {
         country.treasury += msg.value;
@@ -134,6 +133,7 @@ contract GenesisSpace{
     }
     
     //deduct the tax from the country treasury.
+
     function deductTax() private {
         if(country.treasury < country.tax) {
             emit DisableCountry(address(this), country.name);
@@ -148,7 +148,7 @@ contract GenesisSpace{
     
     function onCheck() private {
         require(checkTaxInterval()==true);
-        if(country.treasury < 3 * country.tax && country.treasury >= country.tax){
+        if(country.treasury < warningLimit * country.tax && country.treasury >= country.tax){
             emit TaxWarning(address(this), country.name);
         }
         deductTax();
