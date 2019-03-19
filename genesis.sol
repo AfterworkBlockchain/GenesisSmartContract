@@ -148,7 +148,7 @@ contract GenesisSpace{
     
     function onCheck() private {
         if(checkTaxInterval()) {
-            if(country.treasury < 3 * country.tax){
+            if(country.treasury < 3 * country.tax && country.treasury >= country.tax){
             emit TaxWarning(address(this), country.name);
             }
             deductTax();
@@ -213,7 +213,6 @@ contract GenesisSpace{
         country.tax = tax_;
     }
     
-
     //get the country treasury.
     function getTreasury() public view returns (uint256) {
         return country.treasury;
