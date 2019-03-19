@@ -137,7 +137,7 @@ contract GenesisSpace{
     function deductTax() private {
         if(country.treasury < country.tax) {
             emit DisableCountry(address(this), country.name);
-             isEnabled == false;
+            isEnabled == false;
         } else {//use the treasury to pay tax
             country.treasury -= country.tax;
             admin.transfer(country.tax);
@@ -147,12 +147,11 @@ contract GenesisSpace{
     }
     
     function onCheck() private {
-        if(checkTaxInterval()) {
-            if(country.treasury < 3 * country.tax && country.treasury >= country.tax){
+        require(checkTaxInterval()==true);
+        if(country.treasury < 3 * country.tax && country.treasury >= country.tax){
             emit TaxWarning(address(this), country.name);
-            }
-            deductTax();
         }
+        deductTax();
     }
     
     function onExTrigger() public{
