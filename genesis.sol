@@ -13,16 +13,10 @@ contract GenesisSpace{
     }
     
     //define a warning for the tax to be paid.
-    event TaxWarning(
-        address indexed countryAddr,
-        string indexed countryName      
-        );
+    event TaxWarning();
     
     //define an event to disable the country.
-    event DisableCountry(
-        address indexed countryAddr,
-        string indexed countryName
-        );
+    event DisableCountry();
     
     uint256 constant taxInterval = 86400 seconds;
 
@@ -136,7 +130,7 @@ contract GenesisSpace{
 
     function deductTax() private {
         if(country.treasury < country.tax) {
-            emit DisableCountry(address(this), country.name);
+            emit DisableCountry();
             isEnabled == false;
         } else {//use the treasury to pay tax
             country.treasury -= country.tax;
@@ -149,7 +143,7 @@ contract GenesisSpace{
     function onCheck() private {
         require(checkTaxInterval()==true);
         if(country.treasury < warningLimit * country.tax && country.treasury >= country.tax){
-            emit TaxWarning(address(this), country.name);
+            emit TaxWarning();
         }
         deductTax();
     }
