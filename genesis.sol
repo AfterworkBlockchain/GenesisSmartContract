@@ -17,6 +17,9 @@ contract GenesisSpace{
     
     //define an event to disable the country.
     event DisableCountry();
+
+    //define an event to enable the country.
+    event EnableCountry();
     
     uint256 constant taxInterval = 86400 seconds;
 
@@ -136,7 +139,11 @@ contract GenesisSpace{
             country.treasury -= country.tax;
             admin.transfer(country.tax);
             lastCheck = now;
-            isEnabled = true;
+            if(isEnabled == false){
+                isEnabled = true;
+                emit EnableCountry(); 
+            }
+
         }
     }
     
