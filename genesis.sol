@@ -23,7 +23,7 @@ contract GenesisSpace{
     
     uint256 constant taxInterval = 86400 seconds;
 
-    address payable admin = 0xb04b61254B42d64f17938E5DCe2eb728cAfF8937;
+    address payable admin = 0x564F0D7C4456950dd5c0cc47E6fA330321951806;
     uint8 warningLimit = 3 ;
     mapping(uint256 => bool) usedNonces;
     Country country;
