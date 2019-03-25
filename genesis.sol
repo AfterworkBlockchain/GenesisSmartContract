@@ -133,23 +133,26 @@ contract GenesisSpace{
 
     function deductTax() private {
         if(country.treasury < country.tax) {
-            emit DisableCountry();
-            isEnabled == false;
+           if(isEnabled == true){
+                emit DisableCountry();
+                isEnabled == false;
+           }
         } else {//use the treasury to pay tax
             country.treasury -= country.tax;
             admin.transfer(country.tax);
-            lastCheck = now;
             if(isEnabled == false){
                 isEnabled = true;
                 emit EnableCountry(); 
             }
-
         }
+        lastCheck = now;
     }
     
     function onCheck() private {
         require(checkTaxInterval()==true);
-        if(country.treasury < warningLimit * country.tax && country.treasury >= country.tax){
+        if(country.treasury < warningLimit * country.tax 
+            && country.treasury >= country.tax
+            && isEnabled == true){
             emit TaxWarning();
         }
         deductTax();
