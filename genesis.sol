@@ -21,7 +21,7 @@ contract GenesisSpace{
     //define an event to enable the country.
     event EnableCountry();
     
-    uint256 constant taxInterval = 86400 seconds;
+    uint256 constant taxInterval = 5 seconds;
 
     address payable admin = 0x564F0D7C4456950dd5c0cc47E6fA330321951806;
     uint8 warningLimit = 3 ;
