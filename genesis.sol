@@ -135,7 +135,7 @@ contract GenesisSpace{
         if(country.treasury < country.tax) {
            if(isEnabled == true){
                 emit DisableCountry();
-                isEnabled == false;
+                isEnabled = false;
            }
         } else {//use the treasury to pay tax
             country.treasury -= country.tax;
