@@ -73,7 +73,8 @@ contract GenesisSpace{
     //join the country. It can be only called by citizens.
     function join() public onlyCitizen payable returns (bool) {
         require(msg.value >= country.entryCost, "Failed to pay the entry cost!");
-        //require(getCitizenStatus(msg.sender) == 1, "The citizen is already in the country!");
+        uint8 status = getCitizenStatus(msg.sender);
+        require(status == 0 ||status == 1, "The citizen is not allow to join");
         country.treasury += country.entryCost; //update the treasury
         balances[msg.sender] = msg.value - country.entryCost;
         //addCitizenToList(msg.sender); //add the citizen address to the citizen list
