@@ -83,7 +83,7 @@ contract GenesisSpace{
     }
     
      //leave the country. 
-    function leave() public onlyCitizen returns (bool) {
+    function leave() public onlyCitizen payable returns (bool) {
         require(getCitizenStatus(msg.sender)==1, "The citizen was never in the group!");
         //send the user balance back to the citizen
         msg.sender.transfer(balances[msg.sender]);
