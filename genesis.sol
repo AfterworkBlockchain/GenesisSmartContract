@@ -29,7 +29,7 @@ contract GenesisSpace{
     Country country;
     address countryCreator;
     mapping (address => uint256) balances;
-    mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
+    mapping (address payable=> uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
     uint256 lastCheck;
     bool isEnabled;
     
@@ -74,7 +74,7 @@ contract GenesisSpace{
     function join() public onlyCitizen payable returns (bool) {
         require(msg.value >= country.entryCost, "Failed to pay the entry cost!");
         uint8 status = getCitizenStatus(msg.sender);
-        require(status == 0 ||status == 1, "The citizen is not allow to join");
+        require(status == 0 ||status == 2, "The citizen is not allow to join");
         country.treasury += country.entryCost; //update the treasury
         balances[msg.sender] = msg.value - country.entryCost;
         //addCitizenToList(msg.sender); //add the citizen address to the citizen list
