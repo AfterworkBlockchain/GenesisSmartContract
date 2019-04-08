@@ -29,7 +29,7 @@ contract GenesisSpace{
     Country country;
     address countryCreator;
     mapping (address => uint256) balances;
-    mapping (address payable=> uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
+    mapping (address => uint8) citizenStatus;//0->not in, 1->in, 2->left, 3->kicked out
     uint256 lastCheck;
     bool isEnabled;
     
